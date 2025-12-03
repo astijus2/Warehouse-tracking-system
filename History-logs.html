@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>History Logs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-6xl bg-white rounded-2xl shadow-xl p-6 md:p-8 flex flex-col relative">
+    <!-- Top bar -->
+    <div class="flex items-center justify-between mb-6">
+      <a href="Index.html"
+         class="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 flex items-center gap-2">
+        <i data-feather="arrow-left"></i><span>Back</span>
+      </a>
+      <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium">
+        Doctor: <span id="doctorName">—</span>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <main class="flex-1 flex flex-col">
+      <div class="bg-white rounded-xl shadow-md p-4 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <h1 class="text-xl md:text-2xl font-semibold text-gray-800">History</h1>
+
+          <div class="flex items-center gap-3">
+            <select id="toolFilter" class="border rounded-lg px-3 py-2 text-sm">
+              <option value="">All tools</option>
+              <option value="skalpelis">Skalpelis</option>
+              <option value="zirkles">Žirklės</option>
+              <option value="pincetas">Pincetas</option>
+              <option value="retraktorius">Retraktorius</option>
+              <option value="pjuklas">Pjūklas</option>
+              <option value="laparoskopas">Laparoskopas</option>
+              <option value="kocher">Kocher spaustukas</option>
+              <option value="mosquito">Mosquito spaustukas</option>
+              <option value="adatu">Adatų laikiklis</option>
+              <option value="osteotomas">Osteotomas</option>
+              <option value="dilatorius">Dilatorius</option>
+              <option value="kirptuvas">Siūlų kirptuvas</option>
+            </select>
+            <input id="doctorFilter" class="border rounded-lg px-3 py-2 text-sm" placeholder="Doctor name…">
+          </div>
+        </div>
+
+        <div class="overflow-y-auto max-h-[60vh]">
+          <table class="w-full">
+            <thead class="sticky top-0 bg-white border-b">
+              <tr class="text-left text-gray-600">
+                <th class="py-3 px-4">Time</th>
+                <th class="py-3 px-4">Tool</th>
+                <th class="py-3 px-4">Action</th>
+                <th class="py-3 px-4">Amount</th>
+                <th class="py-3 px-4">Total</th>
+                <th class="py-3 px-4">Doctor</th>
+              </tr>
+            </thead>
+            <tbody id="logsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const LOGS_KEY = 'toolLogs';
+
+    const logsBody     = document.getElementById('logsBody');
+    const toolFilter   = document.getElementById('toolFilter');
+    const doctorFilter = document.getElementById('doctorFilter');
+    const doctorNameEl = document.getElementById('doctorName');
+
+    function renderAllLogs() {
+      const currentDoctor = localStorage.getItem('doctorName') || '—';
+      const all = JSON.parse(localStorage.getItem(LOGS_KEY) || '[]')
+        .sort((a,b) => b.timestamp - a.timestamp);
+
+      const toolVal   = toolFilter.value.trim();
+      const doctorVal = doctorFilter.value.trim().toLowerCase();
+
+      const filtered = all.filter(l => {
+        const okTool = !toolVal || l.toolId === toolVal;
+        const okDoc  = !doctorVal || (l.doctorName || '').toLowerCase().includes(doctorVal);
+        return okTool && okDoc;
+      });
+
+      logsBody.innerHTML = '';
+      filtered.forEach(l => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b hover:bg-gray-50';
+        tr.innerHTML = `
+          <td class="py-3 px-4">${new Date(l.timestamp).toLocaleString()}</td>
+          <td class="py-3 px-4">${l.toolName || l.toolId || '—'}</td>
+          <td class="py-3 px-4">${l.action || '—'}</td>
+          <td class="py-3 px-4">${l.amount ?? '—'}</td>
+          <td class="py-3 px-4">${l.total ?? '—'}</td>
+          <td class="py-3 px-4">${l.doctorName || currentDoctor || '—'}</td>
+        `;
+        logsBody.appendChild(tr);
+      });
+    }
+
+    // Preselect tool filter if ?tool= is present (from tool page "View all")
+    function readQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get('tool');
+      if (t && toolFilter.querySelector(`option[value="${t}"]`)) {
+        toolFilter.value = t;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      feather.replace();
+      doctorNameEl.textContent = localStorage.getItem('doctorName') || '—';
+      readQuery();
+      renderAllLogs();
+    });
+
+    toolFilter.addEventListener('change', renderAllLogs);
+    doctorFilter.addEventListener('input', renderAllLogs);
+
+    (function() {
+  const AUTH_KEY = 'auth';
+  const auth = sessionStorage.getItem(AUTH_KEY);
+  if (!auth) { window.location.href = 'Auth.html'; return; }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const doctorEl = document.getElementById('doctorName');
+    if (!doctorEl) return;
+    const container = doctorEl.parentElement;
+    if (!container) return;
+    container.classList.add('flex','items-center','gap-2');
+
+    if (document.getElementById('logoutBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'logoutBtn';
+    btn.className = 'ml-2 px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-xs';
+    btn.innerHTML = '<i data-feather="log-out" class="inline w-4 h-4 align-[-2px]"></i> Logout';
+    btn.addEventListener('click', () => {
+      sessionStorage.removeItem(AUTH_KEY);
+      sessionStorage.removeItem('doctorName');
+      localStorage.removeItem('auth');         // legacy cleanup
+      localStorage.removeItem('doctorName');   // avoid stale name
+      window.location.href = 'Auth.html';
+    });
+    container.appendChild(btn);
+
+    const name = sessionStorage.getItem('doctorName') || localStorage.getItem('doctorName') || '—';
+    doctorEl.textContent = name;
+    if (window.feather) feather.replace();
+  });
+})();
+  </script>
+</body>
+</html>

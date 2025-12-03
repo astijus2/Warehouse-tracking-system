@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Clinic Warehouse</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-6xl bg-white rounded-2xl shadow-xl p-6 md:p-8 flex flex-col relative">
+    <!-- Top bar -->
+    <div class="flex items-center justify-between mb-6">
+      <!-- Left: History -->
+      <a href="History-logs.html"
+         class="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 flex items-center gap-2">
+        <i data-feather="clock"></i><span>Istorija</span>
+      </a>
+      <!-- Right: Doctor name -->
+      <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium">
+        Daktaras/-ė: <span id="doctorName">—</span>
+      </div>
+    </div>
+
+    <!-- Content area -->
+    <main id="stage" class="flex-1 flex flex-col items-center justify-center relative">
+      <!-- Left arrow -->
+      <button id="prevBtn"
+              class="absolute left-0 top-1/2 -translate-y-1/2 bg-white p-3 rounded-full shadow-md text-gray-600 hover:text-blue-500 disabled:opacity-40">
+        <i data-feather="chevron-left" class="w-8 h-8"></i>
+      </button>
+
+      <!-- Grid (JS fills this) -->
+      <div id="grid"
+           class="grid grid-cols-3 grid-rows-2 gap-5
+                  w-[60vw] max-w-[900px] h-[48vh] max-h-[450px] mt-2"></div>
+
+      <!-- Right arrow -->
+      <button id="nextBtn"
+              class="absolute right-0 top-1/2 -translate-y-1/2 bg-white p-3 rounded-full shadow-md text-gray-600 hover:text-blue-500 disabled:opacity-40">
+        <i data-feather="chevron-right" class="w-8 h-8"></i>
+      </button>
+
+      <!-- Reactive dots -->
+      <div id="dots" class="mt-4 flex items-center gap-2"></div>
+    </main>
+  </div>
+
+  <script>
+    // ===== Data: add all your tools here (id must match tool.html mapping) =====
+    const ITEMS = [
+      { id: 'skalpelis',   name: 'Skalpelis',           icon: 'activity' },
+      { id: 'zirkles',     name: 'Žirklės',             icon: 'settings' },
+      { id: 'pincetas',    name: 'Pincetas',            icon: 'feather'  },
+      { id: 'retraktorius',name: 'Retraktorius',        icon: 'aperture' },
+      { id: 'pjuklas',     name: 'Pjūklas',             icon: 'tool'     },
+      { id: 'laparoskopas',name: 'Laparoskopas',        icon: 'cpu'      },
+      // next page
+      { id: 'kocher',      name: 'Kocher spaustukas',   icon: 'anchor'   },
+      { id: 'mosquito',    name: 'Mosquito spaustukas', icon: 'zap'      },
+      { id: 'adatu',       name: 'Adatų laikiklis',     icon: 'align-center' },
+      { id: 'osteotomas',  name: 'Osteotomas',          icon: 'square'   },
+      { id: 'dilatorius',  name: 'Dilatorius',          icon: 'sliders'  },
+      { id: 'kirptuvas',   name: 'Siūlų kirptuvas',     icon: 'scissors' }
+    ];
+
+    
+
+    const PAGE_SIZE = 6;
+    let page = 0;
+
+    function getTotal(toolId) {
+        return parseInt(localStorage.getItem(`${toolId}:total`) || '0', 10);
+    }
+
+    // DOM
+    const grid     = document.getElementById('grid');
+    const prevBtn  = document.getElementById('prevBtn');
+    const nextBtn  = document.getElementById('nextBtn');
+    const dotsEl   = document.getElementById('dots');
+    const doctorEl = document.getElementById('doctorName');
+
+    // Utils
+    const totalPages = () => Math.max(1, Math.ceil(ITEMS.length / PAGE_SIZE));
+
+    function renderDots() {
+      const pages = totalPages();
+      dotsEl.innerHTML = '';
+      for (let i = 0; i < pages; i++) {
+        const dot = document.createElement('button');
+        dot.className =
+          'w-2.5 h-2.5 rounded-full transition ' +
+          (i === page ? 'bg-blue-500 scale-110' : 'bg-gray-300 hover:bg-gray-400');
+        dot.setAttribute('aria-label', `Go to page ${i+1}`);
+        dot.addEventListener('click', () => renderPage(i));
+        dotsEl.appendChild(dot);
+      }
+    }
+
+    function createCard(item) {
+  const total = getTotal(item.id); // read from localStorage
+
+  const btn = document.createElement('button');
+  btn.className = 'rounded-xl bg-white shadow-xl p-4 flex flex-col items-center justify-center transition hover:shadow-2xl active:scale-95';
+  btn.innerHTML = `
+    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+      <i data-feather="${item.icon || 'box'}" class="w-8 h-8 text-blue-600"></i>
+    </div>
+    <h3 class="text-lg font-medium text-gray-800">${item.name}</h3>
+    <p class="text-sm text-gray-500 mt-1">
+      Siuo metu sandelyje: <span class="font-semibold">${total}</span>
+    </p>
+  `;
+  btn.addEventListener('click', () => {
+    window.location.href = `tool.html?tool=${encodeURIComponent(item.id)}`;
+  });
+  return btn;
+}
+
+    function renderPage(index) {
+      page = index;
+      const start = page * PAGE_SIZE;
+      const slice = ITEMS.slice(start, start + PAGE_SIZE);
+
+      grid.innerHTML = '';
+      slice.forEach(item => grid.appendChild(createCard(item)));
+
+      const maxPage = Math.ceil(ITEMS.length / PAGE_SIZE) - 1;
+      prevBtn.disabled = (page === 0);
+      nextBtn.disabled = (page === maxPage);
+
+      feather.replace();
+      renderDots();
+    }
+
+    // Arrows
+    prevBtn.addEventListener('click', () => { if (page > 0) renderPage(page - 1); });
+    nextBtn.addEventListener('click', () => {
+      const maxPage = Math.ceil(ITEMS.length / PAGE_SIZE) - 1;
+      if (page < maxPage) renderPage(page + 1);
+    });
+
+    // Refresh counts when coming back from a tool page
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) renderPage(page);
+});
+window.addEventListener('pageshow', () => renderPage(page));
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+      feather.replace();
+      // Load doctor name if set elsewhere
+      doctorEl.textContent = localStorage.getItem('doctorName') || '—';
+      renderPage(0);
+    });
+
+    (function() {
+  const AUTH_KEY = 'auth';
+  const auth = sessionStorage.getItem(AUTH_KEY);
+  if (!auth) { window.location.href = 'Auth.html'; return; }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const doctorEl = document.getElementById('doctorName');
+    if (!doctorEl) return;
+    const container = doctorEl.parentElement;
+    if (!container) return;
+    container.classList.add('flex','items-center','gap-2');
+
+    if (document.getElementById('logoutBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'logoutBtn';
+    btn.className = 'ml-2 px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-xs';
+    btn.innerHTML = '<i data-feather="log-out" class="inline w-4 h-4 align-[-2px]"></i> Logout';
+    btn.addEventListener('click', () => {
+      sessionStorage.removeItem(AUTH_KEY);
+      sessionStorage.removeItem('doctorName');
+      localStorage.removeItem('auth');         // legacy cleanup
+      localStorage.removeItem('doctorName');   // avoid stale name
+      window.location.href = 'Auth.html';
+    });
+    container.appendChild(btn);
+
+    const name = sessionStorage.getItem('doctorName') || localStorage.getItem('doctorName') || '—';
+    doctorEl.textContent = name;
+    if (window.feather) feather.replace();
+  });
+})();
+  </script>
+</body>
+</html>
